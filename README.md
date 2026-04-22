@@ -1,5 +1,9 @@
 # tpm-reenroll
 
+[![AUR version](https://img.shields.io/aur/version/tpm-reenroll)](https://aur.archlinux.org/packages/tpm-reenroll)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/thekoma/tpm-reenroll)](https://github.com/thekoma/tpm-reenroll/releases)
+
 Auto re-enroll TPM2 for LUKS when PCR policy changes.
 
 PCR 7 (Secure Boot policy) can change when the Secure Boot database is updated, for example after a Windows Update that modifies the dbx revocation list, a firmware update, or a `fwupdmgr update` on Linux. When this happens, the TPM refuses to unseal the LUKS key and you get a password prompt.
