@@ -1,6 +1,6 @@
 # Maintainer: Andrea Cervesato <thekoma@github>
 pkgname=tpm-reenroll
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Auto re-enroll TPM2 for LUKS when PCR policy changes (e.g. after a Secure Boot dbx update)'
 arch=('any')

@@ -1,3 +1,10 @@
+tpm-reenroll (0.2.0-1) unstable; urgency=low
+
+  * Remove setup script, use password prompt for re-enrollment
+  * Smart post-install message detects existing TPM enrollment
+
+ -- Andrea Cervesato <thekoma@github>  Tue, 22 Apr 2026 23:00:00 +0200
+
 tpm-reenroll (0.1.0-1) unstable; urgency=low
 
   * Initial release
