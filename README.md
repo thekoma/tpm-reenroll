@@ -26,13 +26,11 @@ This typically happens 1-2 times per year (dbx updates, firmware updates), not o
 
 ### Arch Linux (AUR)
 
-The PKGBUILD is in `packaging/aur/`. To install from a local build:
-
 ```bash
-cd packaging/aur
-makepkg -si
-sudo tpm-reenroll-setup
+paru -S tpm-reenroll
 ```
+
+The post-install message will tell you if TPM is already enrolled or if you need to set it up.
 
 ### From source
 
@@ -41,16 +39,22 @@ git clone https://github.com/thekoma/tpm-reenroll.git
 cd tpm-reenroll
 make check       # verify dependencies
 sudo make install
-sudo tpm-reenroll-setup
+sudo systemctl enable tpm-reenroll.service
 ```
 
 ### DEB / RPM
 
 See `packaging/deb/` and `packaging/rpm/` for build files.
 
-## Configuration
+## Setup
 
-After running `tpm-reenroll-setup`, the config lives at `/etc/tpm-reenroll.conf`:
+If you already have TPM enrolled (`systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7`), you just need to create the config file and enable the service. If you don't have TPM enrolled yet, enroll first:
+
+```bash
+sudo systemd-cryptenroll /dev/YOUR_LUKS_DEVICE --tpm2-device=auto --tpm2-pcrs=7
+```
+
+Then create `/etc/tpm-reenroll.conf`:
 
 ```bash
 DEVICE=/dev/disk/by-uuid/your-uuid-here

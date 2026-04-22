@@ -15,14 +15,12 @@ check:
 
 install:
 	install -Dm755 tpm-reenroll $(DESTDIR)$(BINDIR)/tpm-reenroll
-	install -Dm755 tpm-reenroll-setup $(DESTDIR)$(BINDIR)/tpm-reenroll-setup
 	install -Dm644 tpm-reenroll.service $(DESTDIR)$(UNITDIR)/tpm-reenroll.service
 	install -Dm644 tpm-reenroll.conf.example $(DESTDIR)$(CONFDIR)/tpm-reenroll.conf.example
 
 uninstall:
 	-systemctl disable tpm-reenroll.service 2>/dev/null
 	rm -f $(DESTDIR)$(BINDIR)/tpm-reenroll
-	rm -f $(DESTDIR)$(BINDIR)/tpm-reenroll-setup
 	rm -f $(DESTDIR)$(UNITDIR)/tpm-reenroll.service
 	rm -f $(DESTDIR)$(CONFDIR)/tpm-reenroll.conf.example
 	@echo "NOTE: /etc/tpm-reenroll.conf not removed. Delete manually if desired."

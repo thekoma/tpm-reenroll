@@ -1,0 +1,75 @@
+#!/bin/bash
+set -euo pipefail
+
+# Publish a new version to AUR.
+# Usage: ./aur-release [version]
+# If version is omitted, reads from the latest git tag.
+
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+AUR_DIR="${AUR_DIR:-$HOME/src/aur-tpm-reenroll}"
+
+if [ ! -d "$AUR_DIR/.git" ]; then
+    echo "AUR repo not found at $AUR_DIR"
+    echo "Clone it first: git clone ssh://aur@aur.archlinux.org/tpm-reenroll.git $AUR_DIR"
+    exit 1
+fi
+
+VERSION="${1:-$(git -C "$REPO_DIR" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
+
+if [ -z "$VERSION" ]; then
+    echo "Usage: $0 <version>"
+    echo "Or tag a release first: git tag v1.0.0 && git push origin v1.0.0"
+    exit 1
+fi
+
+echo "=== Releasing tpm-reenroll $VERSION to AUR ==="
+
+# Verify the tag exists on GitHub
+echo "Checking GitHub tag v$VERSION..."
+TARBALL_URL="https://github.com/thekoma/tpm-reenroll/archive/v${VERSION}.tar.gz"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "$TARBALL_URL")
+if [ "$HTTP_CODE" != "200" ]; then
+    echo "ERROR: Tag v$VERSION not found on GitHub (HTTP $HTTP_CODE)"
+    echo "Create the tag first:"
+    echo "  git tag v$VERSION && git push origin v$VERSION"
+    exit 1
+fi
+
+# Compute checksum
+echo "Downloading tarball and computing checksum..."
+SHA256=$(curl -sL "$TARBALL_URL" | sha256sum | awk '{print $1}')
+echo "  sha256: $SHA256"
+
+# Copy PKGBUILD and .install from main repo
+cp "$REPO_DIR/packaging/aur/PKGBUILD" "$AUR_DIR/PKGBUILD"
+cp "$REPO_DIR/packaging/aur/tpm-reenroll.install" "$AUR_DIR/tpm-reenroll.install"
+
+# Update version and checksum in PKGBUILD
+cd "$AUR_DIR"
+sed -i "s/^pkgver=.*/pkgver=$VERSION/" PKGBUILD
+sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+sed -i "s/^sha256sums=.*/sha256sums=('$SHA256')/" PKGBUILD
+
+# Regenerate .SRCINFO
+makepkg --printsrcinfo > .SRCINFO
+
+# Show diff
+echo ""
+echo "=== Changes ==="
+git diff
+echo ""
+
+# Confirm
+read -rp "Push to AUR? [y/N] " confirm
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo "Aborted."
+    exit 0
+fi
+
+# Commit and push
+git add PKGBUILD .SRCINFO tpm-reenroll.install
+git commit --author="Andrea Cervesato <andrea.cervesato@gmail.com>" -m "Update to $VERSION"
+git push
+
+echo ""
+echo "=== Done! tpm-reenroll $VERSION published to AUR ==="
