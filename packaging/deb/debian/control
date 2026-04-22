@@ -1,0 +1,15 @@
+Source: tpm-reenroll
+Section: admin
+Priority: optional
+Maintainer: Andrea Cervesato <thekoma@github>
+Build-Depends: debhelper (>= 12)
+Standards-Version: 4.5.0
+Homepage: https://github.com/thekoma/tpm-reenroll
+
+Package: tpm-reenroll
+Architecture: all
+Depends: systemd (>= 250), cryptsetup-bin, coreutils, util-linux, grep
+Description: Auto re-enroll TPM2 for LUKS after PCR policy changes
+ A systemd service that automatically re-enrolls TPM2 for LUKS
+ when PCR policy changes, e.g. after a Secure Boot dbx update.
+ Prompts for the LUKS password when re-enrollment is needed.

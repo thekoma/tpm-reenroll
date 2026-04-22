@@ -1,0 +1,95 @@
+#!/bin/bash
+set -euo pipefail
+
+CONF=/etc/tpm-reenroll.conf
+
+err() { echo "ERROR: $1" >&2; exit 1; }
+warn() { echo "WARNING: $1" >&2; }
+
+# --- Preflight checks ---
+
+[ "$(id -u)" -eq 0 ] || err "Must run as root"
+[ -e /dev/tpmrm0 ] || err "No TPM2 device found (/dev/tpmrm0 missing)"
+command -v systemd-cryptenroll >/dev/null || err "systemd-cryptenroll not found"
+
+SB_VAR=$(find /sys/firmware/efi/efivars/ -name 'SecureBoot-*' 2>/dev/null | head -1)
+if [ -n "$SB_VAR" ]; then
+    SB_STATE=$(od -An -tu1 -j4 -N1 "$SB_VAR" | tr -d ' ')
+    [ "$SB_STATE" = "1" ] || warn "Secure Boot is disabled. PCR 7 will not provide meaningful protection."
+else
+    warn "Cannot determine Secure Boot state."
+fi
+
+[ -e "$CONF" ] && warn "Config already exists ($CONF). Will overwrite."
+
+# --- Device selection ---
+
+# findmnt returns /dev/mapper/root on ext4, /dev/mapper/root[/subvol_root] on btrfs.
+# cut -d'[' strips the subvol suffix (no-op on ext4).
+ROOT_DM=$(findmnt -n -o SOURCE / | cut -d'[' -f1)
+DEFAULT_DEVICE=$(cryptsetup status "$ROOT_DM" 2>/dev/null | awk '/device:/{print $2}')
+
+echo ""
+echo "=== tpm-reenroll setup ==="
+echo ""
+if [ -n "$DEFAULT_DEVICE" ]; then
+    read -rp "LUKS device [$DEFAULT_DEVICE]: " DEVICE
+    DEVICE="${DEVICE:-$DEFAULT_DEVICE}"
+else
+    read -rp "LUKS device (e.g. /dev/nvme0n1p5): " DEVICE
+fi
+
+[ -e "$DEVICE" ] || err "Device $DEVICE does not exist"
+cryptsetup isLuks "$DEVICE" || err "$DEVICE is not a LUKS device"
+
+if ! systemd-cryptenroll "$DEVICE" 2>/dev/null | grep -q password; then
+    err "No password slot found on $DEVICE. At least one password slot is required as fallback."
+fi
+
+# --- PCR selection ---
+
+echo ""
+echo "PCR options:"
+echo "  7       — Secure Boot policy only (recommended for dual-boot)"
+echo "  0+7     — firmware + Secure Boot (breaks on firmware updates)"
+echo "  0+1+7   — firmware + config + Secure Boot (breaks on hardware changes)"
+echo "  (empty) — no PCR binding, TPM-presence only"
+echo ""
+read -rp "PCR set [7]: " PCRS
+PCRS="${PCRS:-7}"
+
+# --- Write config ---
+
+cat > "$CONF" <<EOF
+DEVICE=$DEVICE
+PCRS=$PCRS
+EOF
+chmod 644 "$CONF"
+
+# --- Enable service ---
+
+systemctl daemon-reload
+systemctl enable tpm-reenroll.service
+
+# --- Initial TPM enrollment ---
+
+echo ""
+echo "Running initial TPM enrollment (enter your LUKS password)..."
+systemd-cryptenroll "$DEVICE" \
+    --wipe-slot=tpm2 \
+    --tpm2-device=auto \
+    --tpm2-pcrs="$PCRS"
+
+# --- Summary ---
+
+echo ""
+echo "=== Setup complete ==="
+echo ""
+echo "  Device:     $DEVICE"
+echo "  PCRs:       $PCRS"
+echo "  Config:     $CONF"
+echo "  Service:    enabled (tpm-reenroll.service)"
+echo ""
+echo "When TPM policy changes (e.g. after a Secure Boot dbx update),"
+echo "the service will ask for your LUKS password once to re-enroll."
+echo "Your LUKS password (slot 0) remains available as fallback."

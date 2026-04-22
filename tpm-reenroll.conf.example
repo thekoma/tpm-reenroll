@@ -1,0 +1,15 @@
+# tpm-reenroll configuration
+# Copy this file to /etc/tpm-reenroll.conf and edit as needed.
+# Or run tpm-reenroll-setup to generate it automatically.
+
+# LUKS device to manage
+# Default: auto-detected from running system (findmnt + cryptsetup status)
+#DEVICE=/dev/nvme0n1p5
+
+# TPM2 PCR registers to bind against
+# Common choices:
+#   7       — Secure Boot policy only (recommended for dual-boot)
+#   0+7     — firmware + Secure Boot (breaks on firmware updates)
+#   0+1+7   — firmware + config + Secure Boot (breaks on hardware changes)
+#   (empty) — no PCR binding, TPM-presence only
+PCRS=7

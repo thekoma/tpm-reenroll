@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "configure" ]; then
+    systemctl daemon-reload
+    systemctl enable tpm-reenroll.service
+
+    echo ""
+    echo "NOTE: Run 'sudo tpm-reenroll-setup' to configure the service."
+    echo "The service is enabled but will not run until setup is complete."
+    echo ""
+fi

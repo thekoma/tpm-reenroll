@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto re-enroll TPM2 after policy mismatch
+After=systemd-cryptsetup@root.service local-fs.target
+ConditionPathExists=/dev/tpmrm0
+ConditionPathExists=/etc/tpm-reenroll.conf
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/tpm-reenroll.conf
+ExecStart=/usr/bin/tpm-reenroll
+
+[Install]
+WantedBy=multi-user.target

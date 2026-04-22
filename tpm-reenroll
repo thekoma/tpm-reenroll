@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+# Defaults (overridden by /etc/tpm-reenroll.conf via EnvironmentFile)
+# Auto-detect LUKS device: findmnt returns /dev/mapper/root on ext4,
+# /dev/mapper/root[/subvol_root] on btrfs. cut -d'[' strips the subvol
+# suffix (no-op on ext4), then cryptsetup status resolves the underlying device.
+: "${DEVICE:=$(cryptsetup status "$(findmnt -n -o SOURCE / | cut -d'[' -f1)" 2>/dev/null | awk '/device:/{print $2}')}"
+: "${PCRS:=7}"
+
+if [ -z "$DEVICE" ]; then
+    logger "tpm-reenroll: could not determine LUKS device"
+    exit 1
+fi
+
+if cryptsetup open --test-passphrase --token-only "$DEVICE" 2>/dev/null; then
+    exit 0
+fi
+
+logger "tpm-reenroll: TPM policy mismatch detected, requesting password for re-enrollment..."
+
+systemd-ask-password "Enter LUKS password to re-enroll TPM:" | \
+    systemd-cryptenroll "$DEVICE" \
+        --unlock-key-file=/dev/stdin \
+        --wipe-slot=tpm2 \
+        --tpm2-device=auto \
+        --tpm2-pcrs="$PCRS"
+
+logger "tpm-reenroll: TPM re-enrollment complete (PCRs=$PCRS)"
